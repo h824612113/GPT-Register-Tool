@@ -8,6 +8,14 @@ python -m compileall -q sms_tool services/protocol-payment
 dotnet test GPTRegisterTool.slnx -c Release --nologo
 ```
 
+On macOS, run the Python checks with the bootstrap virtualenv; the WPF xUnit
+project remains Windows-only:
+
+```bash
+.venv/bin/python -m pytest -q
+.venv/bin/python -m compileall -q sms_tool services/protocol-payment
+```
+
 Live Checkout, Stripe confirmation, browser, mailbox-provider, proxy, and
 payment requests are never part of the default suite.
 

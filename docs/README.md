@@ -13,6 +13,7 @@ configuration, generated sessions, and debug output stay outside this directory.
   dependencies.
 - [Directory Map](directory-map.md) - physical repository classification and
   where new code should be placed.
+- [macOS 运行说明](macos.md) - Python CLI bootstrap、启动方式和 Windows/macOS 边界。
 - [v2026.08.06 Release Notes](release-v2026.08.06.md) - protocol
   registration decoupling (session_builder / registration_outcome / account_2fa),
   P0 TOTP 2FA auto-enrollment, P1 device_id persistence, P2 think_time jitter.

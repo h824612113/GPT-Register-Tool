@@ -1,6 +1,6 @@
 # Project Architecture and Boundaries
 
-This document defines the responsibilities of each module so a fresh clone can be configured and run on any Windows machine without hardcoded local paths. For the physical repository classification, see [`directory-map.md`](directory-map.md).
+This document defines the responsibilities of each module so a fresh clone can be configured and run on Windows or macOS without hardcoded local paths. Windows uses the WPF desktop shell; macOS uses the cross-platform Python CLI. For the physical repository classification, see [`directory-map.md`](directory-map.md).
 
 ## Runtime Flow
 

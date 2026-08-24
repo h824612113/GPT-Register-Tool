@@ -19,6 +19,8 @@ skills-lock.json
 
 __pycache__/
 *.py[cod]
+.venv/
+.learnings/
 .pytest_cache/
 *~
 *.bak
@@ -36,6 +38,7 @@ tests/**/obj/
 .idea/
 .vscode/
 .workbuddy-ai/
+docs/superpowers/
 TestResults/
 *.trx
 .coverage

@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -24,6 +26,20 @@ def check_python_version() -> tuple[bool, str, str]:
     return False, f"Python {major}.{minor}", "安装 Python 3.10+（https://www.python.org/downloads/）"
 
 
+def _python_command(*args: str) -> str:
+    """Return a copy/pasteable command using the interpreter running this check."""
+    command = [sys.executable, *args]
+    return shlex.join(command)
+
+
+def check_platform() -> tuple[bool, str, str]:
+    system = platform.system()
+    machine = platform.machine() or "unknown"
+    if system in {"Windows", "Darwin", "Linux"}:
+        return True, f"{system} ({machine})", ""
+    return False, f"{system or 'unknown'} ({machine})", "仅支持 Windows、macOS 和 Linux"
+
+
 def check_node() -> tuple[bool, str, str]:
     exe = shutil.which("node")
     if not exe:
@@ -35,6 +51,14 @@ def check_node() -> tuple[bool, str, str]:
     except Exception as exc:  # pragma: no cover - defensive
         return False, f"无法执行 node：{exc}", "重新安装 Node.js 18+"
     version = (proc.stdout or proc.stderr or "").strip()
+    if proc.returncode != 0:
+        return False, version or "node 执行失败", "重新安装 Node.js 18+"
+    try:
+        major = int(version.lstrip("v").split(".", 1)[0])
+    except (TypeError, ValueError):
+        major = 0
+    if major < 18:
+        return False, version or "node (版本未知)", "升级到 Node.js 18+"
     return True, version or "node (版本未知)", ""
 
 
@@ -42,7 +66,7 @@ def check_import(module: str, pip_name: str) -> tuple[bool, str, str]:
     try:
         __import__(module)
     except Exception as exc:
-        return False, f"{module} 不可导入：{exc}", f"python -m pip install {pip_name}"
+        return False, f"{module} 不可导入：{exc}", f"{_python_command('-m', 'pip', 'install', pip_name)}"
     return True, module, ""
 
 
@@ -50,18 +74,19 @@ def check_playwright_chromium() -> tuple[bool, str, str]:
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:
-        return False, f"playwright 未安装：{exc}", "python -m pip install playwright"
+        return False, f"playwright 未安装：{exc}", f"{_python_command('-m', 'pip', 'install', 'playwright')}"
     try:
         with sync_playwright() as p:
             path = p.chromium.executable_path
     except Exception as exc:
-        return False, f"无法查询 chromium：{exc}", "python -m playwright install chromium"
+        return False, f"无法查询 chromium：{exc}", f"{_python_command('-m', 'playwright', 'install', 'chromium')}"
     if path and Path(path).exists():
         return True, "chromium 已安装", ""
-    return False, "chromium 未下载", "python -m playwright install chromium"
+    return False, "chromium 未下载", f"{_python_command('-m', 'playwright', 'install', 'chromium')}"
 
 
 CHECKS = (
+    ("运行平台", check_platform, True),
     ("Python 版本", check_python_version, True),
     ("Node.js (Sentinel quickjs)", check_node, True),
     ("Playwright Chromium (Stripe init)", check_playwright_chromium, True),

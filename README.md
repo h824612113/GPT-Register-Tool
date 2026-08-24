@@ -1,8 +1,8 @@
 # GPT-Register-Tool
 
-面向 Windows 的 ChatGPT 账号注册、邮箱 OTP、账号管理、协议支付链接提取与显式支付执行工具。
+面向 Windows 和 macOS 的 ChatGPT 账号注册、邮箱 OTP、账号管理、协议支付链接提取与显式支付执行工具。
 
-项目采用 **WPF 桌面端 + Python 业务核心**：桌面端负责操作入口、配置和结果展示，Python 模块负责邮箱、注册、会话、支付、代理与外部服务协议。运行数据默认保存在本机，不写入 Git。
+项目采用 **Windows WPF 桌面端 + macOS PySide6 桌面端 + 跨平台 Python 业务核心**：两个桌面入口共用同一套注册、邮箱 OTP、Session 和支付逻辑。运行数据默认保存在本机，不写入 Git。
 
 ## 项目说明
 
@@ -15,7 +15,7 @@
   -> 可选手机验证与优惠资格查询；协议注册保持 AT-only
   -> JIT AT 探测/刷新与可选协议支付链接提取
   -> Session JSON + SQLite 索引
-  -> WPF 桌面端统一管理
+  -> Windows WPF 桌面端 / macOS PySide6 工作台 / CLI 统一管理
 ```
 
 ### 适用场景
@@ -30,7 +30,7 @@
 
 | 层级 | 技术 |
 | --- | --- |
-| 桌面端 | WPF、.NET 10、C#、Generic Host、CommunityToolkit.Mvvm、WPF-UI |
+| 桌面端 | Windows：WPF/.NET 10；macOS：PySide6/Qt |
 | 业务核心 | Python 3、curl_cffi、requests、httpx、PyNaCl（Ed25519） |
 | 数据存储 | JSON、JSONL、SQLite |
 | 邮箱协议 | ReMail API、CFWorker、iCloud 接码链接、Microsoft Graph/OAuth、IMAP、Gmail IMAP |
@@ -41,10 +41,10 @@
 
 ### 环境要求
 
-- Windows 10/11 x64。
+- Windows 10/11 x64（WPF 桌面端）；macOS 12+（Python CLI，Intel 和 Apple Silicon）。
 - Python 3.10 或更高版本。
 - `curl_cffi==0.16.0`。注册预检会校验安装版本和 `chrome146` profile；旧版本不会进入邮箱采购或注册阶段。
-- .NET 10 Desktop Runtime；从源码编译时需要 .NET 10 SDK。
+- .NET 10 Desktop Runtime（仅 Windows 桌面端）；从源码编译 Windows 桌面端时需要 .NET 10 SDK。
 - **Node.js 18+**（`node` 需在 PATH）：Sentinel Token 的 quickjs 提取器用 `node` 运行 OpenAI 真实 `sdk.js`，缺失会导致注册阶段 OTP 静默丢失。
 - **Playwright Chromium**：MoMo/直卡等协议支付的 Stripe init 走 Chromium 网络栈完成 TLS，需执行 `python -m playwright install chromium`。
 - 可正常访问目标邮箱、ChatGPT 和支付服务的网络环境。
@@ -99,6 +99,46 @@ powershell -ExecutionPolicy Bypass -File .\SmsWorkbench\build_dotnet.ps1
 ```
 
 桌面程序只能通过 `SmsWorkbench/build_dotnet.ps1` 编译。不要直接运行 `dotnet build`，因为它只产生中间文件，不会更新标准工作区 `dist/net10`。
+
+### 方式四：macOS 运行（原生 GUI + Python CLI）
+
+WPF 是 Windows-only 桌面技术，不能在 macOS 上直接编译或运行。macOS 使用 PySide6 注册工作台调用仓库中的同一套 Python 业务核心：
+
+```bash
+git clone https://github.com/2951461586/GPT-Register-Tool.git
+cd GPT-Register-Tool
+chmod +x scripts/macos/*.sh
+./scripts/macos/bootstrap.sh
+```
+
+`bootstrap.sh` 会创建 `.venv`、安装核心及 GUI 依赖、下载 Playwright Chromium，并在缺少配置时复制 `config.example.json`。填写 `config.json` 后启动原生窗口：
+
+```bash
+./scripts/macos/run_gui.sh
+```
+
+也可以生成可双击的本地 `.app` 包装：
+
+```bash
+./scripts/macos/build_app.sh
+open "dist/GPT Register Tool.app"
+```
+
+CLI 入口仍然保留：
+
+```bash
+./scripts/macos/run.sh --help
+./scripts/macos/run.sh --remail-service-mode code --count 1 --workers 1 --registration-at-only --no-phone-reuse
+./scripts/macos/run_proxy_pool.sh --help
+```
+
+也可以使用已存在的虚拟环境覆盖默认解释器：
+
+```bash
+PYTHON_BIN=/path/to/python ./scripts/macos/run.sh --help
+```
+
+macOS 不需要安装 .NET SDK；`SmsWorkbench/` 和 `scripts/installer/` 仍然只用于 Windows 桌面发布。
 
 ### 首次配置
 
@@ -456,7 +496,7 @@ HTTP 401 的支付账号按 OAuth Refresh Token、现有 Cookie `/api/auth/sessi
 - `PP_STRIPE_PUBLISHABLE_KEY`：统一覆盖协议支付回退用的 Stripe publishable key（`sms_tool/gen_pp_link.py` 与 `services/protocol-payment/momo/ac_paylink_core.py` 两处共用）。checkout 响应通常自带该 key，仅在响应缺失时用到回退值；回退时会打印 WARN 日志。
 - `OPENAI_SENTINEL_VERSION`：覆盖 Sentinel SDK 版本（默认值内置于 `sms_tool/sentinel_quickjs.py`）。SDK 下载返回 403/404 通常表示当前版本已被轮换失效，更新此变量或 config 的 `sentinel_version` 即可。
 
-启动前可运行 `python scripts/preflight_env.py` 检出 Node.js、Playwright Chromium 与关键 Python 包是否就绪。
+启动前可运行 `python scripts/preflight_env.py`（macOS 使用 `.venv/bin/python scripts/preflight_env.py`）检出 Node.js、Playwright Chromium 与关键 Python 包是否就绪。
 
 ## 常用操作
 
@@ -531,6 +571,12 @@ python chatgpt_phone_reg.py --buy-remail-mailbox --count 1 --workers 1 --registe
 python chatgpt_phone_reg.py --help
 ```
 
+macOS 使用：
+
+```bash
+./scripts/macos/run.sh --help
+```
+
 ## 测试、构建与发布
 
 ### 运行测试
@@ -539,6 +585,13 @@ python chatgpt_phone_reg.py --help
 python -m pytest -q
 python -m compileall -q sms_tool
 .\.dotnet\dotnet.exe test .\GPTRegisterTool.slnx -c Release
+```
+
+macOS 可运行 Python 测试和编译检查；WPF xUnit 测试及桌面发布仅在 Windows 上执行：
+
+```bash
+.venv/bin/python -m pytest -q
+.venv/bin/python -m compileall -q sms_tool scripts services
 ```
 
 `global.json` 固定仓库 SDK，`Directory.Packages.props` 集中管理 NuGet 版本，标准 xUnit 工程位于 `tests/SmsWorkbench.Tests`。CI 同时执行 Python、C# 测试和规范桌面发布。

@@ -193,14 +193,18 @@ def switch_workspace(
     selector = select_workspace_func or select_workspace_by_cookie
     fetcher = fetch_auth_session_func or _fetch_auth_session_from_cookie
     for workspace_id in parse_workspace_fallback_ids(",".join(workspace_ids or [])):
-        selected = selector(
-            cookie,
-            workspace_id,
-            device_id=str((account or {}).get("device_id") or ""),
-            proxy=proxy,
-            timeout=timeout,
-        )
-        attempt = {"workspace_id": workspace_id, "select": _safe_public(selected)}
+        attempt = {"workspace_id": workspace_id}
+        try:
+            selected = selector(
+                cookie,
+                workspace_id,
+                device_id=str((account or {}).get("device_id") or ""),
+                proxy=proxy,
+                timeout=timeout,
+            )
+        except Exception as exc:
+            selected = {"ok": False, "error": str(exc)[:300]}
+        attempt["select"] = _safe_public(selected)
         if not selected.get("ok"):
             attempts.append(attempt)
             continue
